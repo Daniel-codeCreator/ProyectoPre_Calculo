@@ -1,0 +1,5 @@
+--Version1.000
+se hace la primera version inteegrando el FROTEND 
+--Version1.001
+Se agrega la primera etapa de logicaOperaciones en Funciones lineales 
+

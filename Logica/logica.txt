@@ -1,0 +1,791 @@
+/* ============================================================
+   GraphCalc — motor de resolución + graficado
+   ============================================================ */
+
+const cuerpoEntrada = document.getElementById('inputBody');
+const ecuacionSalida = document.getElementById('readoutEq');
+const rejillaSalida = document.getElementById('readoutGrid');
+const leyenda = document.getElementById('legend');
+const lienzo = document.getElementById('plotCanvas');
+const contexto = lienzo.getContext('2d');
+const botonGraficar = document.getElementById('graphBtn');
+
+let tipoActual = 'lineal';
+let gradoPolinomio = 2;
+
+/* ---------------- ayudantes de formato ---------------- */
+
+function formatear(n, digitos = 3) {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  if (!Number.isFinite(n)) return n > 0 ? '∞' : '-∞';
+  const r = Math.round(n * 10 ** digitos) / 10 ** digitos;
+  return Object.is(r, -0) ? '0' : r.toString();
+}
+
+function terminoConSigno(coef, simbolo, primero = false) {
+  if (coef === 0) return '';
+  const abs = Math.abs(coef);
+  const signo = coef < 0 ? '-' : (primero ? '' : '+');
+  const espacio = primero ? '' : ' ';
+  const coefStr = (abs === 1 && simbolo !== '') ? '' : formatear(abs);
+  return `${espacio}${signo} ${coefStr}${simbolo}`.trim() + ' ';
+}
+
+/* ---------------- definición de pestañas / entradas ---------------- */
+
+const configuracionPestanas = {
+  lineal: {
+    etiqueta: 'Lineal',
+    renderizar: () => `
+      <div class="field-row">
+        <div class="field"><label>m (pendiente)</label><input type="number" id="in_m" value="1" step="0.1"></div>
+        <div class="field"><label>b (intersección)</label><input type="number" id="in_b" value="0" step="0.1"></div>
+      </div>`,
+    leer: () => ({
+      m: parseFloat(document.getElementById('in_m').value) || 0,
+      b: parseFloat(document.getElementById('in_b').value) || 0
+    })
+  },
+  cuadratica: {
+    etiqueta: 'Cuadrática',
+    renderizar: () => `
+      <div class="field-row">
+        <div class="field"><label>a</label><input type="number" id="in_a" value="1" step="0.1"></div>
+        <div class="field"><label>b</label><input type="number" id="in_b" value="0" step="0.1"></div>
+        <div class="field"><label>c</label><input type="number" id="in_c" value="0" step="0.1"></div>
+      </div>`,
+    leer: () => ({
+      a: parseFloat(document.getElementById('in_a').value) || 0,
+      b: parseFloat(document.getElementById('in_b').value) || 0,
+      c: parseFloat(document.getElementById('in_c').value) || 0
+    })
+  },
+  polinomial: {
+    etiqueta: 'Polinomial',
+    renderizar: () => {
+      let filas = '';
+      for (let d = gradoPolinomio; d >= 0; d--) {
+        filas += `
+          <div class="poly-term-row">
+            <span class="term-label">x^${d}</span>
+            <input type="number" id="in_c${d}" value="${d === gradoPolinomio ? 1 : 0}" step="0.1">
+          </div>`;
+      }
+      return `
+        <div class="degree-stepper">
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-dim)">Grado</span>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button id="degDown" type="button">−</button>
+            <span class="degree-val" id="degVal">${gradoPolinomio}</span>
+            <button id="degUp" type="button">+</button>
+          </div>
+        </div>
+        <div class="poly-terms">${filas}</div>`;
+    },
+    leer: () => {
+      const coeficientes = [];
+      for (let d = gradoPolinomio; d >= 0; d--) {
+        coeficientes.push(parseFloat(document.getElementById(`in_c${d}`).value) || 0);
+      }
+      return { coeffs: coeficientes };
+    }
+  },
+  trigonometrica: {
+    etiqueta: 'Trigonométrica',
+    renderizar: () => `
+      <div class="field">
+        <label>función</label>
+        <select id="in_fn">
+          <option value="sin">seno — sin(x)</option>
+          <option value="cos">coseno — cos(x)</option>
+          <option value="tan">tangente — tan(x)</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>a (amplitud)</label><input type="number" id="in_a" value="1" step="0.1"></div>
+        <div class="field"><label>b (frecuencia)</label><input type="number" id="in_b" value="1" step="0.1"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>c (fase)</label><input type="number" id="in_c" value="0" step="0.1"></div>
+        <div class="field"><label>d (desplaz. vert.)</label><input type="number" id="in_d" value="0" step="0.1"></div>
+      </div>`,
+    leer: () => ({
+      fn: document.getElementById('in_fn').value,
+      a: parseFloat(document.getElementById('in_a').value) || 0,
+      b: parseFloat(document.getElementById('in_b').value) || 0,
+      c: parseFloat(document.getElementById('in_c').value) || 0,
+      d: parseFloat(document.getElementById('in_d').value) || 0
+    })
+  }
+};
+
+function renderizarEntradas() {
+  cuerpoEntrada.innerHTML = configuracionPestanas[tipoActual].renderizar();
+  if (tipoActual === 'polinomial') {
+    document.getElementById('degUp').addEventListener('click', () => {
+      if (gradoPolinomio < 8) { gradoPolinomio++; renderizarEntradas(); }
+    });
+    document.getElementById('degDown').addEventListener('click', () => {
+      if (gradoPolinomio > 1) { gradoPolinomio--; renderizarEntradas(); }
+    });
+  }
+}
+
+/* ---------------- resolución matemática ---------------- */
+
+function evaluarPolinomio(coeficientes, x) {
+  // coeficientes[0] = coeficiente de mayor grado
+  let resultado = 0;
+  for (const c of coeficientes) resultado = resultado * x + c;
+  return resultado;
+}
+
+function encontrarRaicesReales(coeficientes, xMin = -60, xMax = 60, pasos = 12000) {
+  const raices = [];
+  const paso = (xMax - xMin) / pasos;
+  let xAnterior = xMin, yAnterior = evaluarPolinomio(coeficientes, xMin);
+  for (let i = 1; i <= pasos; i++) {
+    const x = xMin + i * paso;
+    const y = evaluarPolinomio(coeficientes, x);
+    if (Number.isFinite(yAnterior) && Math.abs(yAnterior) < 1e-9) {
+      raices.push(xAnterior);
+    } else if (Number.isFinite(yAnterior) && Number.isFinite(y) && ((yAnterior < 0) !== (y < 0))) {
+      raices.push(biseccion(coeficientes, xAnterior, x));
+    }
+    xAnterior = x; yAnterior = y;
+  }
+  // deduplicar raíces cercanas
+  const sinDuplicados = [];
+  for (const r of raices) {
+    if (!sinDuplicados.some(d => Math.abs(d - r) < 1e-4)) sinDuplicados.push(r);
+  }
+  return sinDuplicados.sort((a, b) => a - b);
+}
+
+function biseccion(coeficientes, a, b, tolerancia = 1e-8, maxIteraciones = 100) {
+  let fa = evaluarPolinomio(coeficientes, a);
+  for (let i = 0; i < maxIteraciones; i++) {
+    const m = (a + b) / 2;
+    const fm = evaluarPolinomio(coeficientes, m);
+    if (Math.abs(fm) < tolerancia || (b - a) / 2 < tolerancia) return m;
+    if ((fa < 0) !== (fm < 0)) { b = m; } else { a = m; fa = fm; }
+  }
+  return (a + b) / 2;
+}
+
+function construirFuncionYResultado(tipo, params) {
+  if (tipo === 'lineal') {
+    const { m, b } = params;
+    const fn = x => m * x + b;
+    const eq = `y = ${formatear(m)}x ${b >= 0 ? '+' : '-'} ${formatear(Math.abs(b))}`;
+    const items = [
+      { k: 'Pendiente (m)', v: formatear(m) },
+      { k: 'Intersección con y', v: `(0, ${formatear(b)})` },
+      { k: 'Intersección con x', v: m !== 0 ? `(${formatear(-b / m)}, 0)` : 'no existe', cls: m === 0 ? 'warn' : '' },
+      { k: 'Comportamiento', v: m > 0 ? 'creciente ↗' : (m < 0 ? 'decreciente ↘' : 'constante →'), cls: 'good' }
+    ];
+    const pasos = [
+      `Identificás la pendiente m = ${formatear(m)} y la ordenada b = ${formatear(b)}`,
+      `La intersección con el eje y siempre es (0, b) → (0, ${formatear(b)})`,
+      m !== 0
+        ? `Para la raíz igualás 0 = ${formatear(m)}x + ${formatear(b)} → x = -b/m = ${formatear(-b / m)}`
+        : `Como m = 0, la recta es horizontal y no cruza el eje x`
+    ];
+    const puntos = [{ x: 0, y: b, label: `(0, ${formatear(b)})`, kind: 'intercept' }];
+    if (m !== 0) puntos.push({ x: -b / m, y: 0, label: `(${formatear(-b / m)}, 0)`, kind: 'root' });
+    return { fn, eq, items, steps: pasos, points: puntos, discontinuous: false };
+  }
+
+  if (tipo === 'cuadratica') {
+    const { a, b, c } = params;
+    if (a === 0) {
+      const items = [{ k: 'Aviso', v: 'a no puede ser 0 (usá Lineal)', cls: 'bad' }];
+      return { fn: x => b * x + c, eq: `y = ${formatear(b)}x + ${formatear(c)}`, items, steps: ['a debe ser distinto de 0 para que sea cuadrática'], discontinuous: false };
+    }
+    const fn = x => a * x * x + b * x + c;
+    const discriminante = b * b - 4 * a * c;
+    const vx = -b / (2 * a);
+    const vy = fn(vx);
+    let raicesStr, raicesCls = 'good', pasoRaices;
+    if (discriminante > 0) {
+      const r1 = (-b + Math.sqrt(discriminante)) / (2 * a);
+      const r2 = (-b - Math.sqrt(discriminante)) / (2 * a);
+      raicesStr = `x₁=${formatear(r1)}  x₂=${formatear(r2)}`;
+      pasoRaices = `Como D > 0, hay dos raíces reales: x = (-b ± √D) / 2a = (${formatear(-b)} ± √${formatear(discriminante)}) / ${formatear(2 * a)} → x₁=${formatear(r1)}, x₂=${formatear(r2)}`;
+    } else if (discriminante === 0) {
+      raicesStr = `x=${formatear(-b / (2 * a))} (doble)`;
+      pasoRaices = `Como D = 0, hay una raíz doble: x = -b / 2a = ${formatear(-b / (2 * a))}`;
+    } else {
+      const re = formatear(-b / (2 * a));
+      const im = formatear(Math.sqrt(-discriminante) / (2 * a));
+      raicesStr = `${re} ± ${im}i`;
+      raicesCls = 'warn';
+      pasoRaices = `Como D < 0, las raíces son complejas: x = -b/2a ± (√|D|/2a)i = ${re} ± ${im}i`;
+    }
+    const eq = `y = ${formatear(a)}x² ${b >= 0 ? '+' : '-'} ${formatear(Math.abs(b))}x ${c >= 0 ? '+' : '-'} ${formatear(Math.abs(c))}`;
+    const items = [
+      { k: 'Discriminante', v: formatear(discriminante) },
+      { k: 'Raíces', v: raicesStr, cls: raicesCls },
+      { k: 'Vértice', v: `(${formatear(vx)}, ${formatear(vy)})` },
+      { k: 'Eje de simetría', v: `x = ${formatear(vx)}` },
+      { k: 'Concavidad', v: a > 0 ? 'hacia arriba ∪' : 'hacia abajo ∩' }
+    ];
+    const pasos = [
+      `Identificás a=${formatear(a)}, b=${formatear(b)}, c=${formatear(c)}`,
+      `Calculás el discriminante: D = b² - 4ac = (${formatear(b)})² - 4(${formatear(a)})(${formatear(c)}) = ${formatear(discriminante)}`,
+      pasoRaices,
+      `Hallás el vértice: x = -b/2a = ${formatear(vx)}, y = f(${formatear(vx)}) = ${formatear(vy)}`
+    ];
+    const puntos = [{ x: vx, y: vy, label: `Vértice (${formatear(vx)}, ${formatear(vy)})`, kind: 'vertex' }];
+    if (discriminante > 0) {
+      const r1 = (-b + Math.sqrt(discriminante)) / (2 * a);
+      const r2 = (-b - Math.sqrt(discriminante)) / (2 * a);
+      puntos.push({ x: r1, y: 0, label: `(${formatear(r1)}, 0)`, kind: 'root' });
+      puntos.push({ x: r2, y: 0, label: `(${formatear(r2)}, 0)`, kind: 'root' });
+    } else if (discriminante === 0) {
+      puntos.push({ x: -b / (2 * a), y: 0, label: `(${formatear(-b / (2 * a))}, 0)`, kind: 'root' });
+    }
+    return { fn, eq, items, steps: pasos, points: puntos, discontinuous: false };
+  }
+
+  if (tipo === 'polinomial') {
+    const { coeffs: coeficientes } = params;
+    const grado = coeficientes.length - 1;
+    const fn = x => evaluarPolinomio(coeficientes, x);
+    let eq = 'y = ';
+    let primero = true;
+    for (let i = 0; i < coeficientes.length; i++) {
+      const d = grado - i;
+      const simbolo = d === 0 ? '' : (d === 1 ? 'x' : `x^${d}`);
+      const termino = terminoConSigno(coeficientes[i], simbolo, primero);
+      if (termino) { eq += termino; primero = false; }
+    }
+    if (eq === 'y = ') eq = 'y = 0';
+    const raices = encontrarRaicesReales(coeficientes);
+    const raicesStr = raices.length
+      ? raices.map(r => formatear(r, 2)).join(', ')
+      : 'ninguna en el rango visible';
+    const items = [
+      { k: 'Grado', v: String(grado) },
+      { k: 'Raíces reales aprox.', v: raicesStr, cls: 'good' },
+      { k: 'y-intersección', v: `(0, ${formatear(coeficientes[coeficientes.length - 1])})` },
+      { k: 'Extremo dominante', v: grado % 2 === 0
+          ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
+          : (coeficientes[0] > 0 ? '↙ a ↗' : '↖ a ↘') }
+    ];
+    const pasos = [
+      `Armás el polinomio de grado ${grado} con los coeficientes ingresados`,
+      `Evaluás P(0) usando el término independiente → y-intersección = ${formatear(coeficientes[coeficientes.length - 1])}`,
+      `Barrés valores de x buscando cambios de signo en P(x) y afinás cada uno por bisección`,
+      `Raíces reales aproximadas encontradas: ${raicesStr}`
+    ];
+    const puntos = raices.map(r => ({ x: r, y: 0, label: `(${formatear(r, 2)}, 0)`, kind: 'root' }));
+    puntos.push({ x: 0, y: coeficientes[coeficientes.length - 1], label: `(0, ${formatear(coeficientes[coeficientes.length - 1])})`, kind: 'intercept' });
+    return { fn, eq, items, steps: pasos, points: puntos, discontinuous: false };
+  }
+
+  if (tipo === 'trigonometrica') {
+    const { fn: nombreFn, a, b, c, d } = params;
+    const base = { sin: Math.sin, cos: Math.cos, tan: Math.tan }[nombreFn];
+    const fn = x => a * base(b * x + c) + d;
+    const periodo = nombreFn === 'tan' ? Math.PI / Math.abs(b || 1) : 2 * Math.PI / Math.abs(b || 1);
+    const amplitud = nombreFn === 'tan' ? 'no definida' : formatear(Math.abs(a));
+    const desfase = b !== 0 ? formatear(-c / b) : '—';
+    const eq = `y = ${formatear(a)}·${nombreFn}(${formatear(b)}x ${c >= 0 ? '+' : '-'} ${formatear(Math.abs(c))}) ${d >= 0 ? '+' : '-'} ${formatear(Math.abs(d))}`;
+    const items = [
+      { k: 'Amplitud', v: amplitud },
+      { k: 'Periodo', v: `${formatear(periodo)} (${formatear(periodo / Math.PI)}π)` },
+      { k: 'Desfase horizontal', v: desfase },
+      { k: 'Desplaz. vertical', v: formatear(d) },
+      { k: 'Rango', v: nombreFn === 'tan' ? 'ℝ (con asíntotas)' : `[${formatear(d - Math.abs(a))}, ${formatear(d + Math.abs(a))}]` }
+    ];
+    const pasos = [
+      `Identificás la forma y = a·${nombreFn}(bx + c) + d con a=${formatear(a)}, b=${formatear(b)}, c=${formatear(c)}, d=${formatear(d)}`,
+      nombreFn === 'tan' ? `Como es tangente, la amplitud no está definida` : `Amplitud = |a| = ${formatear(Math.abs(a))}`,
+      `Periodo = ${nombreFn === 'tan' ? 'π' : '2π'}/|b| = ${formatear(periodo)}`,
+      `Desfase horizontal = -c/b = ${desfase}`,
+      `Desplazamiento vertical = d = ${formatear(d)}`
+    ];
+    let y0;
+    try { y0 = fn(0); } catch (e) { y0 = NaN; }
+    const puntos = Number.isFinite(y0) ? [{ x: 0, y: y0, label: `(0, ${formatear(y0)})`, kind: 'intercept' }] : [];
+    return { fn, eq, items, steps: pasos, points: puntos, discontinuous: nombreFn === 'tan' };
+  }
+}
+
+function actualizarResultado(eq, items, pasos) {
+  ecuacionSalida.textContent = eq;
+  const pasosHtml = (pasos || []).map((s, i) => `
+    <div class="step-item">
+      <span class="step-num">${i + 1}</span>
+      <span class="step-text">${s}</span>
+    </div>`).join('');
+  const gridHtml = items.map(it => `
+    <div class="readout-item">
+      <span class="k">${it.k}</span>
+      <span class="v ${it.cls || ''}">${it.v}</span>
+    </div>`).join('');
+  rejillaSalida.innerHTML = `
+    <div class="steps-list">${pasosHtml}</div>
+    <div class="readout-divider"></div>
+    ${gridHtml}`;
+}
+
+/* ---------------- motor de canvas (grid, ejes, curva, zoom/pan) ---------------- */
+
+const vista = { cx: 0, cy: 0, escala: 60 }; // escala = px por unidad
+let graficaActiva = null;
+let puntosAutomaticos = [];
+let puntosManuales = [];
+let progresoDibujo = 1; // para animación de trazo
+let cuadroAnimacion = null;
+let escalaPixeles = window.devicePixelRatio || 1;
+
+function redimensionarLienzo() {
+  const rect = lienzo.parentElement.getBoundingClientRect();
+  escalaPixeles = window.devicePixelRatio || 1;
+  lienzo.width = rect.width * escalaPixeles;
+  lienzo.height = rect.height * escalaPixeles;
+  contexto.setTransform(escalaPixeles, 0, 0, escalaPixeles, 0, 0);
+  dibujar();
+}
+
+function pasoAgradable(pxObjetivo, escala) {
+  const unidadCruda = pxObjetivo / escala;
+  const magnitud = Math.pow(10, Math.floor(Math.log10(unidadCruda)));
+  const candidatos = [1, 2, 5, 10];
+  let mejor = magnitud;
+  for (const c of candidatos) {
+    if (magnitud * c >= unidadCruda) { mejor = magnitud * c; break; }
+    mejor = magnitud * c;
+  }
+  return mejor;
+}
+
+function aPixeles(xm, ym, w, h) {
+  return [
+    w / 2 + (xm - vista.cx) * vista.escala,
+    h / 2 - (ym - vista.cy) * vista.escala
+  ];
+}
+function aMatematico(xp, yp, w, h) {
+  return [
+    (xp - w / 2) / vista.escala + vista.cx,
+    -(yp - h / 2) / vista.escala + vista.cy
+  ];
+}
+
+function dibujarCuadricula(w, h) {
+  const paso = pasoAgradable(60, vista.escala);
+  const menor = paso / 5;
+
+  contexto.lineWidth = 1;
+
+  // líneas menores
+  contexto.strokeStyle = 'rgba(35,45,66,0.55)';
+  contexto.beginPath();
+  const [xMinM] = aMatematico(0, 0, w, h);
+  const [xMaxM] = aMatematico(w, 0, w, h);
+  const [, yMinM] = aMatematico(0, h, w, h);
+  const [, yMaxM] = aMatematico(0, 0, w, h);
+  for (let x = Math.floor(xMinM / menor) * menor; x <= xMaxM; x += menor) {
+    const [px] = aPixeles(x, 0, w, h);
+    contexto.moveTo(px, 0); contexto.lineTo(px, h);
+  }
+  for (let y = Math.floor(yMinM / menor) * menor; y <= yMaxM; y += menor) {
+    const [, py] = aPixeles(0, y, w, h);
+    contexto.moveTo(0, py); contexto.lineTo(w, py);
+  }
+  contexto.stroke();
+
+  // líneas mayores
+  contexto.strokeStyle = 'rgba(58,72,102,0.7)';
+  contexto.beginPath();
+  for (let x = Math.floor(xMinM / paso) * paso; x <= xMaxM; x += paso) {
+    const [px] = aPixeles(x, 0, w, h);
+    contexto.moveTo(px, 0); contexto.lineTo(px, h);
+  }
+  for (let y = Math.floor(yMinM / paso) * paso; y <= yMaxM; y += paso) {
+    const [, py] = aPixeles(0, y, w, h);
+    contexto.moveTo(0, py); contexto.lineTo(w, py);
+  }
+  contexto.stroke();
+
+  // etiquetas
+  contexto.fillStyle = '#6b7690';
+  contexto.font = '11px JetBrains Mono, monospace';
+  contexto.textBaseline = 'top';
+  for (let x = Math.floor(xMinM / paso) * paso; x <= xMaxM; x += paso) {
+    if (Math.abs(x) < paso / 100) continue;
+    const [px] = aPixeles(x, 0, w, h);
+    const [, py0] = aPixeles(0, 0, w, h);
+    contexto.fillText(formatear(x, 2), px + 3, Math.min(Math.max(py0 + 3, 3), h - 14));
+  }
+  contexto.textBaseline = 'bottom';
+  for (let y = Math.floor(yMinM / paso) * paso; y <= yMaxM; y += paso) {
+    if (Math.abs(y) < paso / 100) continue;
+    const [px0] = aPixeles(0, 0, w, h);
+    const [, py] = aPixeles(0, y, w, h);
+    contexto.fillText(formatear(y, 2), Math.min(Math.max(px0 + 4, 3), w - 30), py - 2);
+  }
+
+  // ejes
+  contexto.strokeStyle = '#4a5b82';
+  contexto.lineWidth = 1.5;
+  contexto.beginPath();
+  const [ox] = aPixeles(0, 0, w, h);
+  const [, oy] = aPixeles(0, 0, w, h);
+  contexto.moveTo(ox, 0); contexto.lineTo(ox, h);
+  contexto.moveTo(0, oy); contexto.lineTo(w, oy);
+  contexto.stroke();
+}
+
+function dibujarCurva(w, h) {
+  if (!graficaActiva) return;
+  const { fn, discontinuous } = graficaActiva;
+  const segmentos = [];
+  let actual = [];
+  const muestras = Math.floor(w);
+  const saltoMaximo = h * 3;
+  let pyAnterior = null;
+
+  for (let px = 0; px <= muestras; px++) {
+    const [xm] = aMatematico(px, 0, w, h);
+    let y;
+    try { y = fn(xm); } catch (e) { y = NaN; }
+    if (!Number.isFinite(y)) {
+      if (actual.length > 1) segmentos.push(actual);
+      actual = [];
+      pyAnterior = null;
+      continue;
+    }
+    const [, py] = aPixeles(xm, y, w, h);
+    if (discontinuous && pyAnterior !== null && Math.abs(py - pyAnterior) > saltoMaximo) {
+      if (actual.length > 1) segmentos.push(actual);
+      actual = [];
+    }
+    actual.push([px, py]);
+    pyAnterior = py;
+  }
+  if (actual.length > 1) segmentos.push(actual);
+
+  const totalPuntos = segmentos.reduce((s, seg) => s + seg.length, 0);
+  const puntosVisibles = Math.floor(totalPuntos * progresoDibujo);
+
+  contexto.save();
+  contexto.lineJoin = 'round';
+  contexto.lineCap = 'round';
+  contexto.shadowColor = 'rgba(124,92,255,0.9)';
+  contexto.shadowBlur = 12;
+  contexto.strokeStyle = '#7c5cff';
+  contexto.lineWidth = 2.6;
+
+  let dibujados = 0;
+  for (const seg of segmentos) {
+    if (dibujados >= puntosVisibles) break;
+    const restantes = puntosVisibles - dibujados;
+    const pts = seg.slice(0, Math.max(2, restantes));
+    contexto.beginPath();
+    contexto.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) contexto.lineTo(pts[i][0], pts[i][1]);
+    contexto.stroke();
+    dibujados += seg.length;
+  }
+
+  // segunda pasada más brillante y fina encima (efecto "glow" core)
+  contexto.shadowBlur = 0;
+  contexto.strokeStyle = 'rgba(220,215,255,0.85)';
+  contexto.lineWidth = 1;
+  dibujados = 0;
+  for (const seg of segmentos) {
+    if (dibujados >= puntosVisibles) break;
+    const restantes = puntosVisibles - dibujados;
+    const pts = seg.slice(0, Math.max(2, restantes));
+    contexto.beginPath();
+    contexto.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) contexto.lineTo(pts[i][0], pts[i][1]);
+    contexto.stroke();
+    dibujados += seg.length;
+  }
+  contexto.restore();
+}
+
+function dibujar() {
+  const w = lienzo.width / escalaPixeles;
+  const h = lienzo.height / escalaPixeles;
+  contexto.clearRect(0, 0, w, h);
+  dibujarCuadricula(w, h);
+  dibujarCurva(w, h);
+  dibujarMarcadores(w, h);
+}
+
+/* ---------------- puntos marcados (auto + manuales) ---------------- */
+
+const COLORES_PUNTO = {
+  vertex: '#ffb454',
+  root: '#29e7cd',
+  intercept: '#7c5cff',
+  manual: '#ff5d7a'
+};
+
+function trazarRectanguloRedondeado(x, y, w, h, r) {
+  contexto.beginPath();
+  contexto.moveTo(x + r, y);
+  contexto.arcTo(x + w, y, x + w, y + h, r);
+  contexto.arcTo(x + w, y + h, x, y + h, r);
+  contexto.arcTo(x, y + h, x, y, r);
+  contexto.arcTo(x, y, x + w, y, r);
+  contexto.closePath();
+}
+
+function dibujarPunto(px, py, color, etiqueta, w, h) {
+  contexto.save();
+  contexto.beginPath();
+  contexto.arc(px, py, 5, 0, Math.PI * 2);
+  contexto.shadowColor = color;
+  contexto.shadowBlur = 12;
+  contexto.fillStyle = color;
+  contexto.fill();
+  contexto.shadowBlur = 0;
+  contexto.lineWidth = 2;
+  contexto.strokeStyle = '#0a0e17';
+  contexto.stroke();
+  contexto.restore();
+
+  if (!etiqueta) return;
+  contexto.font = '11px "JetBrains Mono", monospace';
+  const anchoTexto = contexto.measureText(etiqueta).width;
+  const padX = 7, altoCaja = 19;
+  let lx = px - anchoTexto / 2 - padX;
+  let ly = py - altoCaja - 12;
+  lx = Math.max(4, Math.min(w - anchoTexto - padX * 2 - 4, lx));
+  ly = Math.max(4, Math.min(h - altoCaja - 4, ly));
+  trazarRectanguloRedondeado(lx, ly, anchoTexto + padX * 2, altoCaja, 5);
+  contexto.fillStyle = 'rgba(15,20,32,0.94)';
+  contexto.fill();
+  contexto.lineWidth = 1;
+  contexto.strokeStyle = color;
+  contexto.stroke();
+  contexto.fillStyle = color;
+  contexto.textBaseline = 'middle';
+  contexto.fillText(etiqueta, lx + padX, ly + altoCaja / 2 + 1);
+}
+
+function dibujarMarcadores(w, h) {
+  for (const p of puntosAutomaticos) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+    const [px, py] = aPixeles(p.x, p.y, w, h);
+    if (px < -20 || px > w + 20 || py < -20 || py > h + 20) continue;
+    dibujarPunto(px, py, COLORES_PUNTO[p.kind] || COLORES_PUNTO.intercept, p.label, w, h);
+  }
+  for (const p of puntosManuales) {
+    const [px, py] = aPixeles(p.x, p.y, w, h);
+    if (px < -20 || px > w + 20 || py < -20 || py > h + 20) continue;
+    dibujarPunto(px, py, COLORES_PUNTO.manual, p.label, w, h);
+  }
+}
+
+function animarDibujo() {
+  progresoDibujo = 0;
+  const duracion = 650;
+  const inicio = performance.now();
+  if (cuadroAnimacion) cancelAnimationFrame(cuadroAnimacion);
+  function paso(ahora) {
+    const t = Math.min(1, (ahora - inicio) / duracion);
+    progresoDibujo = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    dibujar();
+    if (t < 1) cuadroAnimacion = requestAnimationFrame(paso);
+  }
+  cuadroAnimacion = requestAnimationFrame(paso);
+}
+
+/* ---------------- interacción: pan + zoom + marcado ---------------- */
+
+let arrastrando = false;
+let arrastreMovido = false;
+let inicioArrastre = null;
+
+lienzo.addEventListener('mousedown', e => {
+  arrastrando = true;
+  arrastreMovido = false;
+  inicioArrastre = { x: e.clientX, y: e.clientY, cx: vista.cx, cy: vista.cy };
+  lienzo.classList.add('grabbing');
+});
+
+window.addEventListener('mouseup', e => {
+  if (arrastrando && !arrastreMovido) manejarClicLienzo(e);
+  arrastrando = false;
+  lienzo.classList.remove('grabbing');
+});
+
+window.addEventListener('mousemove', e => {
+  if (!arrastrando) return;
+  const ddx = e.clientX - inicioArrastre.x;
+  const ddy = e.clientY - inicioArrastre.y;
+  if (Math.abs(ddx) > 4 || Math.abs(ddy) > 4) arrastreMovido = true;
+
+  const dx = ddx / vista.escala;
+  const dy = ddy / vista.escala;
+  vista.cx = inicioArrastre.cx - dx;
+  vista.cy = inicioArrastre.cy + dy;
+  dibujar();
+});
+
+function manejarClicLienzo(e) {
+  if (!graficaActiva) return;
+  const rect = lienzo.getBoundingClientRect();
+  const clicX = e.clientX - rect.left;
+  const clicY = e.clientY - rect.top;
+  if (clicX < 0 || clicY < 0 || clicX > rect.width || clicY > rect.height) return;
+
+  // si el clic cae cerca de un punto manual existente, se quita (toggle)
+  const indiceCercano = puntosManuales.findIndex(p => {
+    const [ppx, ppy] = aPixeles(p.x, p.y, rect.width, rect.height);
+    return Math.hypot(ppx - clicX, ppy - clicY) < 14;
+  });
+  if (indiceCercano >= 0) { puntosManuales.splice(indiceCercano, 1); dibujar(); return; }
+
+  const [xm] = aMatematico(clicX, clicY, rect.width, rect.height);
+  agregarPuntoManual(xm);
+}
+
+function agregarPuntoManual(valorX) {
+  if (!graficaActiva || !Number.isFinite(valorX)) return;
+  let y;
+  try { y = graficaActiva.fn(valorX); } catch (e) { y = NaN; }
+  if (!Number.isFinite(y)) return;
+  puntosManuales.push({ x: valorX, y, label: `(${formatear(valorX, 2)}, ${formatear(y, 2)})` });
+  if (puntosManuales.length > 6) puntosManuales.shift();
+  dibujar();
+}
+
+lienzo.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  vista.escala = Math.min(400, Math.max(6, vista.escala * factor));
+  dibujar();
+}, { passive: false });
+
+document.getElementById('zoomIn').addEventListener('click', () => {
+  vista.escala = Math.min(400, vista.escala * 1.25); dibujar();
+});
+document.getElementById('zoomOut').addEventListener('click', () => {
+  vista.escala = Math.max(6, vista.escala / 1.25); dibujar();
+});
+document.getElementById('zoomReset').addEventListener('click', () => {
+  vista.cx = 0; vista.cy = 0; vista.escala = 60; dibujar();
+});
+
+document.getElementById('markBtn').addEventListener('click', () => {
+  const valor = parseFloat(document.getElementById('markX').value);
+  agregarPuntoManual(valor);
+});
+document.getElementById('markX').addEventListener('keydown', e => {
+  if (e.key === 'Enter') agregarPuntoManual(parseFloat(e.target.value));
+});
+document.getElementById('clearMarksBtn').addEventListener('click', () => {
+  puntosManuales = [];
+  dibujar();
+});
+
+window.addEventListener('resize', redimensionarLienzo);
+
+/* ---------------- auto-ajuste de vista según el resultado ---------------- */
+
+function muestrearRango(fn, xMin, xMax, n = 320) {
+  const ys = [];
+  const paso = (xMax - xMin) / n;
+  for (let i = 0; i <= n; i++) {
+    const x = xMin + i * paso;
+    let y;
+    try { y = fn(x); } catch (e) { y = NaN; }
+    if (Number.isFinite(y)) ys.push(y);
+  }
+  return ys;
+}
+
+function percentil(ordenado, p) {
+  if (!ordenado.length) return 0;
+  const idx = (ordenado.length - 1) * p;
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if (lo === hi) return ordenado[lo];
+  return ordenado[lo] + (ordenado[hi] - ordenado[lo]) * (idx - lo);
+}
+
+function calcularVistaAutomatica(tipo, params, fn) {
+  let centroX = 0;
+  let rangoMedioX = 8;
+
+  if (tipo === 'lineal') {
+    rangoMedioX = 10;
+  } else if (tipo === 'cuadratica' && params.a) {
+    centroX = -params.b / (2 * params.a);
+    rangoMedioX = Math.min(20, Math.max(3, 6 / Math.sqrt(Math.abs(params.a))));
+  } else if (tipo === 'polinomial') {
+    const grado = params.coeffs.length - 1;
+    rangoMedioX = Math.min(14, Math.max(4, 4 + grado));
+  } else if (tipo === 'trigonometrica') {
+    const b = params.b || 1;
+    const periodo = params.fn === 'tan' ? Math.PI / Math.abs(b) : 2 * Math.PI / Math.abs(b);
+    rangoMedioX = Math.min(30, Math.max(4, periodo * 1.8));
+  }
+
+  const ys = muestrearRango(fn, centroX - rangoMedioX, centroX + rangoMedioX).sort((a, b) => a - b);
+  let yBajo = percentil(ys, 0.04);
+  let yAlto = percentil(ys, 0.96);
+  if (!Number.isFinite(yBajo) || !Number.isFinite(yAlto) || yAlto - yBajo < 1e-6) {
+    yBajo = -5; yAlto = 5;
+  }
+  const relleno = Math.max((yAlto - yBajo) * 0.18, 0.5);
+  yBajo -= relleno; yAlto += relleno;
+  const centroY = (yBajo + yAlto) / 2;
+  const rangoY = Math.max(yAlto - yBajo, rangoMedioX * 0.2);
+
+  const rect = lienzo.getBoundingClientRect();
+  const w = rect.width || 560;
+  const h = rect.height || 380;
+  const escalaX = (w * 0.88) / (2 * rangoMedioX);
+  const escalaY = (h * 0.88) / rangoY;
+
+  return {
+    cx: centroX,
+    cy: centroY,
+    escala: Math.min(400, Math.max(6, Math.min(escalaX, escalaY)))
+  };
+}
+
+/* ---------------- flujo principal ---------------- */
+
+function graficar() {
+  const params = configuracionPestanas[tipoActual].leer();
+  const resultado = construirFuncionYResultado(tipoActual, params);
+  graficaActiva = { fn: resultado.fn, discontinuous: resultado.discontinuous };
+  puntosAutomaticos = resultado.points || [];
+  puntosManuales = [];
+  actualizarResultado(resultado.eq, resultado.items, resultado.steps);
+
+  const vistaAuto = calcularVistaAutomatica(tipoActual, params, resultado.fn);
+  vista.cx = vistaAuto.cx;
+  vista.cy = vistaAuto.cy;
+  vista.escala = vistaAuto.escala;
+
+  animarDibujo();
+}
+
+document.querySelectorAll('.fn-tab').forEach(pestana => {
+  pestana.addEventListener('click', () => {
+    document.querySelectorAll('.fn-tab').forEach(t => t.classList.remove('active'));
+    pestana.classList.add('active');
+    tipoActual = pestana.dataset.type;
+    renderizarEntradas();
+    graficar();
+  });
+});
+
+botonGraficar.addEventListener('click', graficar);
+
+/* ---------------- inicio ---------------- */
+
+renderizarEntradas();
+redimensionarLienzo();
+graficar();

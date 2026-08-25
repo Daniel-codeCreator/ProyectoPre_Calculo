@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pre-Calculo · Calculadora Graficadora</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="scanline-overlay"></div>
+
+<header class="app-header">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+      <path d="M4 30 L14 16 L22 24 L36 6" stroke="url(#gradStroke)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs>
+        <linearGradient id="gradStroke" x1="4" y1="30" x2="36" y2="6" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#7C5CFF"/>
+          <stop offset="1" stop-color="#29E7CD"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="brand-text">
+      <h1>Pre-Calculo</h1>
+    </div>
+  </div>
+
+  <div class="developers">
+    <span class="developers-title">DESARROLLADORES</span>
+    <div class="developer">
+      <img src="images/avatar11.png" alt="Daniel Boc">
+      <span>Daniel Boc</span>
+    </div>
+    <div class="developer">
+      <img src="images/avatar5.png" alt="Noe">
+      <span>Noe</span>
+    </div>
+    <div class="developer">
+      <img src="images/marcBernal.png" alt="Marc Bernal">
+      <span>NOMBRE</span>
+    </div>
+    <div class="developer">
+      <img src="images/marcBernal.png" alt="Nombre">
+      <span>NOMBRE</span>
+    </div>
+    <div class="developer">
+      <img src="images/marcBernal.png" alt="Nombre">
+      <span>NOMBRE</span>
+    </div>
+  </div>
+
+  <div class="coord-readout" id="coordReadout">x: 0.00&nbsp;&nbsp;y: 0.00</div>
+</header>
+
+<main class="app-shell">
+
+  <section class="control-panel">
+
+    <nav class="fn-tabs" role="tablist">
+      <button class="fn-tab active" data-type="lineal">
+        <span class="tab-index">01</span>
+        <span class="tab-label">Lineal</span>
+      </button>
+      <button class="fn-tab" data-type="cuadratica">
+        <span class="tab-index">02</span>
+        <span class="tab-label">Cuadrática</span>
+      </button>
+      <button class="fn-tab" data-type="polinomial">
+        <span class="tab-index">03</span>
+        <span class="tab-label">Polinomial</span>
+      </button>
+      <button class="fn-tab" data-type="trigonometrica">
+        <span class="tab-index">04</span>
+        <span class="tab-label">Trigonométrica</span>
+      </button>
+    </nav>
+
+    <div class="input-card">
+      <div class="input-body" id="inputBody"></div>
+      <button class="graph-btn" id="graphBtn">
+        <span>Graficar</span>
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none"><path d="M4 12 L8 6 L12 10 L16 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="readout-panel" id="readoutPanel">
+      <div class="readout-header">
+        <span class="readout-dot"></span>
+        <span>ANÁLISIS</span>
+      </div>
+      <div class="readout-eq" id="readoutEq">y = m·x + b</div>
+      <div class="readout-grid" id="readoutGrid"></div>
+    </div>
+
+  </section>
+
+  <section class="plot-panel">
+    <div class="plot-toolbar">
+      <div class="legend" id="legend">
+        <span class="legend-dot"></span><span>f(x)</span>
+      </div>
+      <div class="zoom-controls">
+        <button id="zoomOut" title="Alejar">−</button>
+        <button id="zoomReset" title="Restablecer vista">⌂</button>
+        <button id="zoomIn" title="Acercar">+</button>
+        <button id="exportPngBtn" title="Exportar como PNG">⬇</button>
+      </div>
+    </div>
+    <div class="mark-toolbar">
+      <span class="mark-hint">Clic en la curva para marcar un punto, o:</span>
+      <div class="mark-inputs">
+        <input type="number" id="markX" placeholder="x =" step="0.1">
+        <button id="markBtn">Marcar</button>
+        <button id="clearMarksBtn" title="Quitar puntos marcados">✕</button>
+      </div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="plotCanvas"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <footer>
+      <div class="footer-content">
+        © 2026 Pre-Calculo. Todos los derechos reservados  de los desarrodores de la Universidad Mariano Gálvez de Guatemala.
+      </div>
+    </footer>
+  </section>
+
+</main>
+
+<script type="module" src="Logica/main.js"></script>
+
+</body>
+</html>
