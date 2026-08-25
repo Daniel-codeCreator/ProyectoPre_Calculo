@@ -454,6 +454,25 @@ body {
   color: var(--cyan);
 }
 
+.export-pdf-btn {
+  width: auto !important;
+  padding: 0 10px;
+  font-size: 11px !important;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.export-pdf-btn:hover {
+  border-color: var(--amber) !important;
+  color: var(--amber) !important;
+}
+
+.export-pdf-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .mark-toolbar {
   display: flex;
   align-items: center;

@@ -4,6 +4,7 @@ import * as Polinomial from './LogicaOperaciones/funcionesPolinomiales.js';
 import * as Trigonometrica from './LogicaOperaciones/funcionesTrigonometricas.js';
 import { crearMotorGrafico } from './motorCanvas.js';
 import { calcularVistaAutomatica } from './vistaAutomatica.js';
+import { exportarPDF } from './generatePDF.js';  
 
 const cuerpoEntrada = document.getElementById('inputBody');
 const ecuacionSalida = document.getElementById('readoutEq');
@@ -13,6 +14,7 @@ const botonGraficar = document.getElementById('graphBtn');
 
 let tipoActual = 'lineal';
 let gradoPolinomio = 2;
+let ultimoResultado = null;
 
 const configuracionPestanas = {
   lineal: Lineal,
@@ -69,6 +71,7 @@ const motor = crearMotorGrafico(lienzo);
 function graficar() {
   const params = leerParametrosActuales();
   const resultado = configuracionPestanas[tipoActual].construir(params);
+  ultimoResultado = resultado;
   actualizarResultado(resultado.eq, resultado.items, resultado.steps);
 
   const dimensiones = motor.obtenerDimensiones();
@@ -124,6 +127,29 @@ document.getElementById('exportPngBtn').addEventListener('click', () => {
   motor.exportarPNG(`grafica-${tipoActual}.png`);
 });
 
+document.getElementById('exportPdfBtn').addEventListener('click', async () => {
+  if (!ultimoResultado) return;
+  const boton = document.getElementById('exportPdfBtn');
+  const textoOriginal = boton.textContent;
+  boton.disabled = true;
+  boton.textContent = '...';
+  try {
+    await exportarPDF({
+      tipo: tipoActual.toUpperCase(), // Se pasa el string directo
+      eq: ultimoResultado.eq,
+      items: ultimoResultado.items,
+      pasos: ultimoResultado.steps,
+      lienzo: document.getElementById('plotCanvas'),
+      nombreArchivo: `precalculo-${tipoActual}.pdf`
+    });
+  } catch (error) {
+    console.error('Error al generar PDF:', error);
+    alert('Ocurrió un error al generar el PDF. Revisa la consola.');
+  } finally {
+    boton.disabled = false;
+    boton.textContent = textoOriginal;
+  }
+});
 /* ---------------- inicio ---------------- */
 
 export function iniciarAplicacion() {
