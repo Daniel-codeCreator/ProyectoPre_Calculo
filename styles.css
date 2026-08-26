@@ -604,3 +604,598 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--violet-dim); }
+
+
+/* =========================================================
+   RESPONSIVE - TABLETS Y TELEFONOS
+   AGREGAR AL FINAL DE styles.css
+   ========================================================= */
+
+
+/* ---------------------------------------------------------
+   EVITAR SCROLL HORIZONTAL
+   --------------------------------------------------------- */
+
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+
+/* =========================================================
+   TABLETS
+   Menor o igual a 980px
+   ========================================================= */
+
+@media (max-width: 980px) {
+
+    /* CONTENIDO PRINCIPAL */
+
+    .app-shell {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .control-panel,
+    .plot-panel {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .control-panel {
+        position: static;
+    }
+
+
+    /* GRAFICA */
+
+    .plot-panel {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        height: 420px;
+
+        /* Quita el resize manual en tablet */
+        resize: none;
+    }
+
+
+    /* HEADER */
+
+    .app-header {
+        padding: 16px 18px;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .coord-readout {
+        display: none;
+    }
+
+
+    /* DESARROLLADORES */
+
+    .developers {
+        width: 100%;
+        margin: 0;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .developer img {
+        width: 48px;
+        height: 48px;
+    }
+
+
+    /* FOOTER */
+
+    .footer-content {
+        white-space: normal;
+        text-align: center;
+        padding-left: 15px;
+        padding-right: 15px;
+        line-height: 1.5;
+    }
+}
+
+
+/* =========================================================
+   TELEFONOS
+   Menor o igual a 600px
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+    /* -----------------------------------------------------
+       HEADER
+       ----------------------------------------------------- */
+
+    .app-header {
+        padding: 12px;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .brand {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .brand-mark {
+        width: 30px;
+        height: 30px;
+    }
+
+    .brand-text h1 {
+        font-size: 19px;
+    }
+
+
+    /* =====================================================
+       DESARROLLADORES - CARRUSEL AUTOMATICO
+       ===================================================== */
+
+    .developers {
+        position: relative;
+
+        width: 100%;
+        height: 105px;
+
+        margin: 0;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        overflow: hidden;
+
+        /* Evita que el gap anterior afecte */
+        gap: 0;
+    }
+
+
+    /* Titulo "Desarrolladores" */
+
+    .developers-title {
+        position: absolute;
+
+        top: 0;
+        left: 0;
+
+        width: 100%;
+
+        text-align: center;
+
+        font-size: 10px;
+        z-index: 10;
+    }
+
+
+    /* Cada desarrollador ocupa el mismo lugar */
+
+    .developer {
+        position: absolute;
+
+        top: 25px;
+        left: 50%;
+
+        width: 130px;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        opacity: 0;
+
+        transform: translateX(40px);
+
+        animation-name: developerCarousel;
+        animation-duration: 15s;
+        animation-timing-function: ease-in-out;
+        animation-iteration-count: infinite;
+    }
+
+
+    /* FOTO */
+
+    .developer img {
+        width: 48px;
+        height: 48px;
+
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+
+    /* NOMBRE */
+
+    .developer span {
+        margin-top: 5px;
+
+        font-size: 10px;
+
+        text-align: center;
+        white-space: nowrap;
+    }
+
+
+    /* -----------------------------------------------------
+       RETRASO DE CADA DESARROLLADOR
+
+       El titulo .developers-title es el primer hijo,
+       por eso los desarrolladores empiezan en nth-child(2)
+       ----------------------------------------------------- */
+
+    .developer:nth-child(2) {
+        animation-delay: 0s;
+    }
+
+    .developer:nth-child(3) {
+        animation-delay: 3s;
+    }
+
+    .developer:nth-child(4) {
+        animation-delay: 6s;
+    }
+
+    .developer:nth-child(5) {
+        animation-delay: 9s;
+    }
+
+    .developer:nth-child(6) {
+        animation-delay: 12s;
+    }
+
+
+    /* -----------------------------------------------------
+       ANIMACION
+       Entra derecha -> centro -> sale izquierda
+       ----------------------------------------------------- */
+
+    @keyframes developerCarousel {
+
+        0% {
+            opacity: 0;
+            transform: translateX(40px);
+        }
+
+        5% {
+            opacity: 1;
+            transform: translateX(-50%);
+        }
+
+        15% {
+            opacity: 1;
+            transform: translateX(-50%);
+        }
+
+        20% {
+            opacity: 0;
+            transform: translateX(calc(-50% - 40px));
+        }
+
+        100% {
+            opacity: 0;
+            transform: translateX(calc(-50% - 40px));
+        }
+    }
+
+
+    /* -----------------------------------------------------
+       CONTENIDO PRINCIPAL
+       ----------------------------------------------------- */
+
+    .app-shell {
+        width: 100%;
+
+        grid-template-columns: minmax(0, 1fr);
+
+        padding: 10px;
+
+        gap: 12px;
+    }
+
+    .control-panel {
+        width: 100%;
+        min-width: 0;
+
+        gap: 12px;
+    }
+
+
+    /* -----------------------------------------------------
+       PESTANAS DE FUNCIONES
+       ----------------------------------------------------- */
+
+    .fn-tabs {
+        width: 100%;
+
+        overflow-x: auto;
+        overflow-y: hidden;
+
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .fn-tab {
+        flex-shrink: 0;
+    }
+
+
+    /* -----------------------------------------------------
+       FORMULARIOS
+       ----------------------------------------------------- */
+
+    .field-row {
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+    .field {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+
+        /*
+           16px evita que iPhone haga zoom automatico
+           al tocar un input
+        */
+        font-size: 16px;
+    }
+
+
+    /* BOTON GRAFICAR */
+
+    .graph-btn {
+        width: 100%;
+
+        min-height: 44px;
+
+        font-size: 15px;
+    }
+
+
+    /* -----------------------------------------------------
+       GRAFICA
+       ----------------------------------------------------- */
+
+    .plot-panel {
+        width: 100%;
+
+        /*
+           IMPORTANTE:
+           tu CSS original tiene min-width: 380px.
+           Esto permite que funcione en telefonos de 320,
+           360, 375, 390px, etc.
+        */
+
+        min-width: 0;
+
+        max-width: 100%;
+
+        height: 400px;
+        min-height: 350px;
+
+        resize: none;
+    }
+
+
+    /* -----------------------------------------------------
+       TOOLBAR DE LA GRAFICA
+       ----------------------------------------------------- */
+
+    .plot-toolbar {
+        padding: 10px;
+
+        gap: 10px;
+
+        flex-wrap: wrap;
+    }
+
+
+    /* LEYENDA */
+
+    .legend {
+        min-width: 0;
+    }
+
+
+    /* BOTONES ZOOM */
+
+    .zoom-controls {
+        gap: 5px;
+
+        flex-wrap: wrap;
+    }
+
+    .zoom-controls button {
+        width: 36px;
+        height: 36px;
+    }
+
+
+    /* BOTON PDF */
+
+    .export-pdf-btn {
+        height: 36px;
+
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+
+    /* -----------------------------------------------------
+       MARCAR PUNTOS
+       ----------------------------------------------------- */
+
+    .mark-toolbar {
+        padding: 10px;
+
+        align-items: stretch;
+
+        flex-wrap: wrap;
+    }
+
+    .mark-hint {
+        width: 100%;
+
+        text-align: center;
+    }
+
+    .mark-inputs {
+        width: 100%;
+
+        justify-content: center;
+
+        flex-wrap: wrap;
+    }
+
+    .mark-inputs input {
+        flex: 1;
+
+        min-width: 80px;
+        max-width: 150px;
+
+        font-size: 16px;
+    }
+
+    .mark-inputs button {
+        min-height: 38px;
+    }
+
+
+    /* -----------------------------------------------------
+       ANALISIS
+       ----------------------------------------------------- */
+
+    .readout-item {
+        align-items: flex-start;
+    }
+
+    .readout-item .v {
+        word-break: break-word;
+    }
+
+
+    /* -----------------------------------------------------
+       FOOTER
+       ----------------------------------------------------- */
+
+    .footer-content {
+        width: 100%;
+
+        white-space: normal;
+
+        text-align: center;
+
+        font-size: 11px;
+
+        line-height: 1.5;
+
+        padding: 12px;
+    }
+}
+
+
+/* =========================================================
+   TELEFONOS PEQUENOS
+   Menor o igual a 400px
+   ========================================================= */
+
+@media (max-width: 400px) {
+
+    .app-shell {
+        padding: 8px;
+    }
+
+
+    /* LOGO */
+
+    .brand-text h1 {
+        font-size: 18px;
+    }
+
+
+    /* DESARROLLADORES */
+
+    .developers {
+        height: 100px;
+    }
+
+    .developer img {
+        width: 44px;
+        height: 44px;
+    }
+
+    .developer span {
+        font-size: 9px;
+    }
+
+
+    /* GRAFICA */
+
+    .plot-panel {
+        height: 360px;
+
+        min-height: 320px;
+    }
+
+
+    /* TOOLBAR */
+
+    .plot-toolbar {
+        justify-content: center;
+    }
+
+    .legend {
+        width: 100%;
+
+        justify-content: center;
+    }
+
+    .zoom-controls {
+        width: 100%;
+
+        justify-content: center;
+    }
+}
+
+
+/* =========================================================
+   ACCESIBILIDAD
+   Si el usuario tiene desactivadas/reducidas las animaciones
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .developer {
+        animation: none;
+    }
+
+    @media (max-width: 600px) {
+
+        .developer {
+            display: none;
+        }
+
+        .developer:nth-child(2) {
+            display: flex;
+
+            opacity: 1;
+
+            transform: translateX(-50%);
+        }
+    }
+}

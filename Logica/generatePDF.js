@@ -11,7 +11,7 @@ function limpiarTextoUnicode(str) {
     .replace(/[←⇐]/g, '<-')
     .replace(/[↘↗↙↖]/g, '\\')
     .replace(/[↑↓]/g, '|')
-    // Operadores matemáticos
+    // Operadores matemáticosx|
     .replace(/≤/g, '<=')
     .replace(/≥/g, '>=')
     .replace(/≠/g, '!=')
