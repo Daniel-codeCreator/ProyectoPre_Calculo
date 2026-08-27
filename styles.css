@@ -600,6 +600,17 @@ body {
     white-space: nowrap;
 }
 
+#documentBtn {
+    background-color: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 11.5px;
+    padding: 6px 10px;
+    transition: all 0.12s ease;
+}
+
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }

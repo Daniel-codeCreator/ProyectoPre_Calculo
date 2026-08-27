@@ -12,6 +12,18 @@ const rejillaSalida = document.getElementById('readoutGrid');
 const lienzo = document.getElementById('plotCanvas');
 const botonGraficar = document.getElementById('graphBtn');
 
+const documentWord = document.getElementById('documentBtn');
+
+if (documentWord) {
+    documentWord.addEventListener('click', () => {
+        window.open(
+            'https://umgt-my.sharepoint.com/:w:/g/personal/ebocb_miumg_edu_gt/IQBgt5dIOwNdTK4-6m8HtaJuAbj0eHObjEwZ6DJjQNOtZPk?e=1JjMAP',
+            '_blank',
+            'noopener,noreferrer'
+        );
+    });
+}
+
 let tipoActual = 'lineal';
 let gradoPolinomio = 2;
 let ultimoResultado = null;
