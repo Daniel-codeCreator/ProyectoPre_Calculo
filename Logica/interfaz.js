@@ -14,6 +14,8 @@ const botonGraficar = document.getElementById('graphBtn');
 
 const documentWord = document.getElementById('documentBtn');
 
+
+//va al documento PDF 
 if (documentWord) {
     documentWord.addEventListener('click', () => {
         window.open(
@@ -135,6 +137,8 @@ document.getElementById('clearMarksBtn').addEventListener('click', () => {
   motor.limpiarPuntosManuales();
 });
 
+
+//exporta la imgagen solo del la GRAFICA
 document.getElementById('exportPngBtn').addEventListener('click', () => {
   motor.exportarPNG(`grafica-${tipoActual}.png`);
 });
