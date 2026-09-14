@@ -1,0 +1,103 @@
+# 👨‍💻 Pasos para nuevos colaboradores
+
+### 1. Aceptar la invitación
+
+Primero debes aceptar la invitación que te envió el dueño del repositorio en GitHub.
+
+---
+
+### 2. Abrir PowerShell
+
+Ve a la carpeta donde quieres guardar el proyecto. Por ejemplo:
+
+```powershell
+cd C:\Users\TU_USUARIO\Desktop
+```
+
+---
+
+### 3. Clonar el proyecto
+
+Ejecuta:
+
+```powershell
+git clone https://github.com/Daniel-codeCreator/ProyectoPre_Calculo.git
+```
+
+Esto descargará el proyecto en tu computadora.
+
+---
+
+### 4. Entrar al proyecto
+
+```powershell
+cd ProyectoPre_Calculo
+```
+
+---
+
+### 5. Comprobar que funciona
+
+```powershell
+git status
+```
+
+Si aparece algo como:
+
+```text
+On branch main
+```
+
+ya estás conectado correctamente. 
+
+---
+
+# Cuando vayas a trabajar
+
+Antes de comenzar:
+
+```powershell
+git pull
+```
+
+Esto trae los cambios más recientes de tus compañeros.
+
+Después haces tus cambios en el proyecto.
+
+---
+
+# Cuando termines tus cambios
+
+Ejecuta:
+
+```powershell
+git add .
+```
+
+Luego:
+
+```powershell
+git commit -m "Descripción de los cambios"
+```
+
+Por ejemplo:
+
+```powershell
+git commit -m "Agrega formulario de estudiantes"
+```
+
+Y finalmente:
+
+```powershell
+git push
+```
+
+---
+
+```text
+Primera vez:
+git clone → cd ProyectoPre_Calculo
+
+Cada vez que trabajes:
+git pull → haces cambios → git add . → git commit → git push
+```
