@@ -192,7 +192,12 @@ export function leerParametros(grado) {
 }
 
 export function construir(params) {
-  const { coeffs: coeficientes } = params;
+  // const { coeffs: coeficientes } = params;
+  // const grado = coeficientes.length - 1;
+  // const fn = x => evaluarPolinomio(coeficientes, x);
+
+  const { coeffs } = params;
+  const coeficientes = eliminarCerosIniciales(coeffs);
   const grado = coeficientes.length - 1;
   const fn = x => evaluarPolinomio(coeficientes, x);
 
@@ -215,9 +220,14 @@ export function construir(params) {
   }
 
   const raices = encontrarRaicesReales(coeficientes);
-  const raicesStr = raices.length
-    ? raices.map(r => formatear(r, 2)).join(', ')
-    : 'ninguna encontrada en [-60, 60]';
+  // const raicesStr = raices.length
+  //   ? raices.map(r => formatear(r, 2)).join(', ')
+  //   : 'ninguna encontrada en [-60, 60]';
+
+  const raicesStr = grado === 0 && coeficientes[0] === 0
+    ? 'Todos los numeros reales ' : raices.length 
+      ? raices.map(r => formatear(r, 2)).join(', ')
+      : 'ninguna encontrada en [-60, 60]';
 
   const items = [
     { k: 'Grado', v: String(grado) },
@@ -226,11 +236,19 @@ export function construir(params) {
       k: 'y-intersección',
       v: `(0, ${formatear(coeficientes[coeficientes.length - 1])})`
     },
+    // {
+    //   k: 'Extremo dominante',
+    //   v: grado % 2 === 0
+    //     ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
+    //     : (coeficientes[0] > 0 ? '↙ a ↗' : '↖ a ↘')
+    // }
     {
       k: 'Extremo dominante',
-      v: grado % 2 === 0
-        ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
-        : (coeficientes[0] > 0 ? '↙ a ↗' : '↖ a ↘')
+      v: grado === 0
+        ? 'funcion constante'
+        : grado % 2 === 0
+         ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
+         : (coeficientes[0] > 0 ? '↙ a ↗' : '↖ a ↘')
     }
   ];
 
