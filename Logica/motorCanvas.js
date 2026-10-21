@@ -16,6 +16,7 @@ export function crearMotorGrafico(lienzo) {
   let progresoDibujo = 1;
   let cuadroAnimacion = null;
   let escalaPixeles = window.devicePixelRatio || 1;
+  let vistaAutomatica = null;
 
   /* ---------------- transformaciones de coordenadas ---------------- */
 
@@ -127,7 +128,7 @@ export function crearMotorGrafico(lienzo) {
 
   function dibujarCurva(w, h) {
     if (!graficaActiva) return;
-    const { fn, discontinuous } = graficaActiva;
+    const { fn, discontinuous, breakBetween, traceRange } = graficaActiva;
     const segmentos = [];
     let actual = [];
     const muestras = Math.floor(w);
@@ -136,6 +137,12 @@ export function crearMotorGrafico(lienzo) {
 
     for (let px = 0; px <= muestras; px++) {
       const [xm] = aMatematico(px, 0, w, h);
+      if (traceRange && (xm < traceRange.xMin || xm > traceRange.xMax)) {
+        if (actual.length > 1) segmentos.push(actual);
+        actual = [];
+        pyAnterior = null;
+        continue;
+      }
       let y;
       try { y = fn(xm); } catch (e) { y = NaN; }
       if (!Number.isFinite(y)) {
@@ -145,7 +152,11 @@ export function crearMotorGrafico(lienzo) {
         continue;
       }
       const [, py] = aPixeles(xm, y, w, h);
-      if (discontinuous && pyAnterior !== null && Math.abs(py - pyAnterior) > saltoMaximo) {
+      const [xmAnterior] = aMatematico(Math.max(0, px - 1), 0, w, h);
+      if (
+        (breakBetween && px > 0 && breakBetween(xmAnterior, xm)) ||
+        (discontinuous && pyAnterior !== null && Math.abs(py - pyAnterior) > saltoMaximo)
+      ) {
         if (actual.length > 1) segmentos.push(actual);
         actual = [];
       }
@@ -169,7 +180,7 @@ export function crearMotorGrafico(lienzo) {
     for (const seg of segmentos) {
       if (dibujados >= puntosVisibles) break;
       const restantes = puntosVisibles - dibujados;
-      const pts = seg.slice(0, Math.max(2, restantes));
+      const pts = seg.slice(0, Math.min(seg.length, Math.max(2, restantes)));
       contexto.beginPath();
       contexto.moveTo(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) contexto.lineTo(pts[i][0], pts[i][1]);
@@ -184,7 +195,7 @@ export function crearMotorGrafico(lienzo) {
     for (const seg of segmentos) {
       if (dibujados >= puntosVisibles) break;
       const restantes = puntosVisibles - dibujados;
-      const pts = seg.slice(0, Math.max(2, restantes));
+      const pts = seg.slice(0, Math.min(seg.length, Math.max(2, restantes)));
       contexto.beginPath();
       contexto.moveTo(pts[0][0], pts[0][1]);
       for (let i = 1; i < pts.length; i++) contexto.lineTo(pts[i][0], pts[i][1]);
@@ -422,7 +433,12 @@ export function crearMotorGrafico(lienzo) {
 
   return {
     graficar(resultado) {
-      graficaActiva = { fn: resultado.fn, discontinuous: resultado.discontinuous };
+      graficaActiva = {
+        fn: resultado.fn,
+         discontinuous: resultado.discontinuous,
+         breakBetween: resultado.breakBetween || null,
+         traceRange: resultado.traceRange || null
+      };
       puntosAutomaticos = resultado.points || [];
       puntosManuales = [];
       animarDibujo();
@@ -431,6 +447,7 @@ export function crearMotorGrafico(lienzo) {
     limpiarPuntosManuales() { puntosManuales = []; dibujar(); },
     ajustarVista({ cx, cy, escala }) {
       vista.cx = cx; vista.cy = cy; vista.escala = escala;
+      vistaAutomatica = { cx, cy, escala };
     },
     zoomIn() {
       const rect = lienzo.getBoundingClientRect();
@@ -452,7 +469,25 @@ export function crearMotorGrafico(lienzo) {
     },
     ajustarTamano,
     dibujar,
+    finalizarDibujo() {
+      if (cuadroAnimacion) cancelAnimationFrame(cuadroAnimacion);
+      cuadroAnimacion = null;
+      progresoDibujo = 1;
+      dibujar();
+    },
+    prepararExportacion() {
+      if (vistaAutomatica) {
+        vista.cx = vistaAutomatica.cx;
+        vista.cy = vistaAutomatica.cy;
+        vista.escala = vistaAutomatica.escala;
+      }
+      if (cuadroAnimacion) cancelAnimationFrame(cuadroAnimacion);
+      cuadroAnimacion = null;
+      progresoDibujo = 1;
+      dibujar();
+    },
     exportarPNG(nombreArchivo = 'grafica.png') {
+      this.prepararExportacion();
       lienzo.toBlob(blob => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);

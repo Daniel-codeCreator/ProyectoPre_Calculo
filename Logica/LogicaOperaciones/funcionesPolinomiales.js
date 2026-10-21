@@ -11,6 +11,11 @@ export function evaluarPolinomio(coeficientes, x) {
 
 export function biseccion(coeficientes, a, b, tolerancia = 1e-8, maxIteraciones = 100) {
   let fa = evaluarPolinomio(coeficientes, a);
+  let fb = evaluarPolinomio(coeficientes, b);
+
+  if (Math.abs(fa) <= tolerancia) return a;
+  if (Math.abs(fb) <= tolerancia) return b;
+  if ((fa < 0) === (fb < 0)) return NaN;
 
   for (let i = 0; i < maxIteraciones; i++) {
     const m = (a + b) / 2;
@@ -22,6 +27,7 @@ export function biseccion(coeficientes, a, b, tolerancia = 1e-8, maxIteraciones 
 
     if ((fa < 0) !== (fm < 0)) {
       b = m;
+      fb = fm;
     } else {
       a = m;
       fa = fm;
@@ -118,7 +124,7 @@ export function encontrarRaicesReales(
   for (const x of puntosCriticos) {
     const y = evaluarPolinomio(coef, x);
 
-    if (Number.isFinite(y) && Math.abs(y) <= 1e-6) {
+    if (Number.isFinite(y) && Math.abs(y) <= tolerancia) {
       agregarRaizSinDuplicar(raices, x);
     }
   }
@@ -147,7 +153,11 @@ export function encontrarRaicesReales(
 
     if (!Number.isFinite(fa) || !Number.isFinite(fb)) continue;
 
-    if ((fa < 0) !== (fb < 0)) {
+    if (Math.abs(fa) <= tolerancia) {
+      agregarRaizSinDuplicar(raices, a);
+    } else if (Math.abs(fb) <= tolerancia) {
+      agregarRaizSinDuplicar(raices, b);
+    } else if ((fa < 0) !== (fb < 0)) {
       const raiz = biseccion(coef, a, b, tolerancia);
       agregarRaizSinDuplicar(raices, raiz);
     }
@@ -192,14 +202,11 @@ export function leerParametros(grado) {
 }
 
 export function construir(params) {
-  // const { coeffs: coeficientes } = params;
-  // const grado = coeficientes.length - 1;
-  // const fn = x => evaluarPolinomio(coeficientes, x);
-
   const { coeffs } = params;
   const coeficientes = eliminarCerosIniciales(coeffs);
   const grado = coeficientes.length - 1;
   const fn = x => evaluarPolinomio(coeficientes, x);
+  const esPolinomioCero = grado === 0 && coeficientes[0] === 0;
 
   let eq = 'y = ';
   let primero = true;
@@ -220,31 +227,24 @@ export function construir(params) {
   }
 
   const raices = encontrarRaicesReales(coeficientes);
-  // const raicesStr = raices.length
-  //   ? raices.map(r => formatear(r, 2)).join(', ')
-  //   : 'ninguna encontrada en [-60, 60]';
-
-  const raicesStr = grado === 0 && coeficientes[0] === 0
-    ? 'Todos los numeros reales ' : raices.length 
+  const raicesStr = esPolinomioCero
+    ? 'todos los números reales' : raices.length
       ? raices.map(r => formatear(r, 2)).join(', ')
       : 'ninguna encontrada en [-60, 60]';
 
   const items = [
-    { k: 'Grado', v: String(grado) },
+    { k: 'Grado', v: esPolinomioCero ? 'no definido' : String(grado) },
     { k: 'Raíces reales aprox.', v: raicesStr, cls: 'good' },
+    { k: 'Dominio', v: 'ℝ' },
     {
       k: 'y-intersección',
       v: `(0, ${formatear(coeficientes[coeficientes.length - 1])})`
     },
-    // {
-    //   k: 'Extremo dominante',
-    //   v: grado % 2 === 0
-    //     ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
-    //     : (coeficientes[0] > 0 ? '↙ a ↗' : '↖ a ↘')
-    // }
     {
       k: 'Extremo dominante',
-      v: grado === 0
+      v: esPolinomioCero
+        ? 'función nula'
+        : grado === 0
         ? 'funcion constante'
         : grado % 2 === 0
          ? (coeficientes[0] > 0 ? 'ambos extremos ↑' : 'ambos extremos ↓')
@@ -253,10 +253,16 @@ export function construir(params) {
   ];
 
   const pasos = [
-    `Armás el polinomio de grado ${grado} con los coeficientes ingresados`,
-    `Evaluás P(0) usando el término independiente → y-intersección = ${formatear(coeficientes[coeficientes.length - 1])}`,
-    `Buscás puntos críticos con la derivada y revisás los intervalos entre ellos para detectar raíces simples y raíces múltiples`,
-    `Raíces reales aproximadas encontradas en [-60, 60]: ${raicesStr}`
+    esPolinomioCero
+      ? 'Todos los coeficientes son 0, por lo que P(x) = 0 para cualquier valor de x'
+      : `Armás el polinomio simplificado de grado ${grado}: ${eq}`,
+    `Evaluás P(0) usando el término independiente: P(0) = ${formatear(coeficientes[coeficientes.length - 1])}; la intersección con y es (0, ${formatear(coeficientes[coeficientes.length - 1])})`,
+    'Derivás el polinomio para dividir el eje x en intervalos donde la función es monótona',
+    'En cada intervalo se detectan cambios de signo y se aplica bisección para aproximar las raíces sin perder raíces múltiples',
+    `Raíces reales encontradas en [-60, 60]: ${raicesStr}`,
+    esPolinomioCero
+      ? 'El dominio, rango y conjunto de raíces son todos los números reales'
+      : `El comportamiento final depende del grado y del coeficiente principal ${formatear(coeficientes[0])}`
   ];
 
   const puntos = raices.map(r => ({
@@ -273,12 +279,19 @@ export function construir(params) {
     kind: 'intercept'
   });
 
+  const limiteTrazo = raices.length > 1
+    ? { xMin: raices[0], xMax: raices[raices.length - 1] }
+    : raices.length === 1
+    ? { xMin: raices[0] - 2, xMax: raices[0] + 2 }
+    : { xMin: -2, xMax: 2 };
+
   return {
     fn,
     eq,
     items,
     steps: pasos,
     points: puntos,
-    discontinuous: false
+    discontinuous: false,
+    traceRange: limiteTrazo
   };
 }

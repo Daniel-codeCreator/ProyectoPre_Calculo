@@ -1,6 +1,7 @@
 export function formatear(n, digitos = 3) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   if (!Number.isFinite(n)) return n > 0 ? '∞' : '-∞';
+  if (n !== 0 && Math.abs(n) < 10 ** -digitos) return n.toExponential(digitos);
   const r = Math.round(n * 10 ** digitos) / 10 ** digitos;
   return Object.is(r, -0) ? '0' : r.toString();
 }

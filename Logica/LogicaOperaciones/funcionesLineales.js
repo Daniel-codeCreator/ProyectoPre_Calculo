@@ -43,13 +43,19 @@ export function construir(params) {
     { k: 'Pendiente (m)', v: formatear(m) },
     { k: 'Intersección con y', v: `(0, ${formatear(b)})` },
     { k: 'Intersección con x', v: interseccionX, cls: claseInterseccionX },
-    { k: 'Comportamiento', v: m > 0 ? 'creciente ↗' : (m < 0 ? 'decreciente ↘' : 'constante →'), cls: 'good' }
+    { k: 'Comportamiento', v: m > 0 ? 'creciente ↗' : (m < 0 ? 'decreciente ↘' : 'constante →'), cls: 'good' },
+    { k: 'Dominio', v: 'ℝ' },
+    { k: 'Rango', v: m === 0 ? `{${formatear(b)}}` : 'ℝ' }
   ];
 
   const pasos = [
-    `Identificás la pendiente m = ${formatear(m)} y la ordenada b = ${formatear(b)}`,
-    `La intersección con el eje y siempre es (0, b) → (0, ${formatear(b)})`,
-    pasoRaiz
+    `Partís de la forma y = mx + b e identificás m = ${formatear(m)} y b = ${formatear(b)}`,
+    `Para la intersección con y sustituís x = 0: y = ${formatear(m)}(0) + ${formatear(b)} = ${formatear(b)}; el punto es (0, ${formatear(b)})`,
+    pasoRaiz,
+    m === 0
+      ? `Como la pendiente es 0, el rango solo contiene el valor ${formatear(b)}`
+      : `Como m ${m > 0 ? 'es positiva' : 'es negativa'}, la recta es ${m > 0 ? 'creciente' : 'decreciente'} y su rango es todos los números reales`,
+    'Una función lineal está definida para cualquier valor real de x; por eso su dominio es ℝ'
   ];
 
   const puntos = [{ x: 0, y: b, label: `(0, ${formatear(b)})`, kind: 'intercept' }];
@@ -63,5 +69,19 @@ export function construir(params) {
     });
   }
 
-  return { fn, eq, items, steps: pasos, points: puntos, discontinuous: false };
+  const raiz = m === 0 ? 0 : -b / m;
+  const limiteInferior = Math.min(0, raiz);
+  const limiteSuperior = Math.max(0, raiz);
+
+  return {
+    fn,
+    eq,
+    items,
+    steps: pasos,
+    points: puntos,
+    discontinuous: false,
+    traceRange: limiteInferior === limiteSuperior
+      ? { xMin: limiteInferior - 1, xMax: limiteSuperior + 1 }
+      : { xMin: limiteInferior, xMax: limiteSuperior }
+  };
 }

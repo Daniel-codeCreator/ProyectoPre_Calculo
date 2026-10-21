@@ -35,38 +35,52 @@ export function leerParametros() {
 export function construir(params) {
   const { fn: nombreFn, a, b, c, d } = params;
   const base = { sin: Math.sin, cos: Math.cos, tan: Math.tan }[nombreFn];
+  const esTangente = nombreFn === 'tan';
+  const EPSILON_ASINTOTA = 1e-10;
+  const argumentoEsAsintota = argumento =>
+    esTangente && Math.abs(Math.cos(argumento)) < EPSILON_ASINTOTA;
 
-  const fn = x => a * base(b * x + c) + d;
-  const esConstante = b === 0;
+  const fn = x => {
+    const argumento = b * x + c;
+    return argumentoEsAsintota(argumento) ? NaN : a * base(argumento) + d;
+  };
+  const esIndefinida = b === 0 && argumentoEsAsintota(c);
+  const esConstante = b === 0 && !argumentoEsAsintota(c);
+  const senoCosenoConstante = !esTangente && a === 0;
 
   let periodo;
   let periodoStr;
   let desfase;
   let rango;
 
-  if (esConstante) {
+  if (esIndefinida) {
+    periodo = null;
+    periodoStr = 'no definido';
+    desfase = 'no aplica';
+    rango = 'no definido';
+  } else if (esConstante || senoCosenoConstante) {
     periodo = null;
     periodoStr = 'no definido (función constante)';
     desfase = 'no aplica';
 
-    const valorConstante = fn(0);
+    const valorConstante = senoCosenoConstante ? d : fn(0);
     rango = Number.isFinite(valorConstante)
       ? `{${formatear(valorConstante)}}`
       : 'no definido';
   } else {
-    periodo = nombreFn === 'tan'
+    periodo = esTangente
       ? Math.PI / Math.abs(b)
       : 2 * Math.PI / Math.abs(b);
 
     periodoStr = `${formatear(periodo)} (${formatear(periodo / Math.PI)}π)`;
     desfase = formatear(-c / b);
 
-    rango = nombreFn === 'tan'
+    rango = esTangente
       ? 'ℝ (con asíntotas)'
       : `[${formatear(d - Math.abs(a))}, ${formatear(d + Math.abs(a))}]`;
   }
 
-  const amplitud = nombreFn === 'tan'
+  const amplitud = esTangente
     ? 'no definida'
     : formatear(Math.abs(a));
 
@@ -77,21 +91,29 @@ export function construir(params) {
     { k: 'Periodo', v: periodoStr },
     { k: 'Desfase horizontal', v: desfase },
     { k: 'Desplaz. vertical', v: formatear(d) },
-    { k: 'Rango', v: rango }
+    { k: 'Rango', v: rango },
+    { k: 'Dominio', v: esIndefinida ? '∅' : (esTangente ? 'ℝ excepto las asíntotas verticales' : 'ℝ') }
   ];
 
   const pasos = [
     `Identificás la forma y = a·${nombreFn}(bx + c) + d con a=${formatear(a)}, b=${formatear(b)}, c=${formatear(c)}, d=${formatear(d)}`,
-    nombreFn === 'tan'
+    esTangente
       ? 'Como es tangente, la amplitud no está definida'
       : `Amplitud = |a| = ${formatear(Math.abs(a))}`,
-    esConstante
-      ? 'Como b = 0, la expresión ya no depende de x; por eso la función es constante y no tiene período fundamental'
-      : `Periodo = ${nombreFn === 'tan' ? 'π' : '2π'}/|b| = ${formatear(periodo)}`,
-    esConstante
-      ? 'Como b = 0, el desfase horizontal -c/b no está definido y no aplica a una función constante'
+    esIndefinida
+      ? 'La tangente no está definida porque el argumento constante coincide con una asíntota vertical'
+      : esConstante || senoCosenoConstante
+      ? 'La expresión es constante; por eso no tiene período fundamental ni desfase relevante'
+      : `Periodo = ${esTangente ? 'π' : '2π'}/|b| = ${formatear(periodo)}`,
+    esIndefinida || esConstante || senoCosenoConstante
+      ? 'El desfase horizontal no aplica en este caso'
       : `Desfase horizontal = -c/b = ${desfase}`,
-    `Desplazamiento vertical = d = ${formatear(d)}`
+    `Desplazamiento vertical = d = ${formatear(d)}`,
+    esIndefinida
+      ? 'El dominio es vacío porque la expresión es indefinida para todo x'
+      : esTangente
+      ? 'El dominio excluye los valores que hacen bx + c = π/2 + kπ; en esos puntos hay asíntotas verticales'
+      : `El rango se obtiene desplazando la amplitud: ${rango}`
   ];
 
   let y0;
@@ -106,12 +128,25 @@ export function construir(params) {
     ? [{ x: 0, y: y0, label: `(0, ${formatear(y0)})`, kind: 'intercept' }]
     : [];
 
+  const centroTrazo = b === 0 ? 0 : -c / b;
+  const medioTrazo = periodo ? periodo : 4;
+
   return {
     fn,
     eq,
     items,
     steps: pasos,
     points: puntos,
-    discontinuous: nombreFn === 'tan' && !esConstante
+    discontinuous: esTangente && !esConstante && !esIndefinida,
+    traceRange: { xMin: centroTrazo - medioTrazo, xMax: centroTrazo + medioTrazo },
+    breakBetween: esTangente && !esConstante && !esIndefinida
+      ? (x1, x2) => {
+          const minimo = Math.min(b * x1 + c, b * x2 + c);
+          const maximo = Math.max(b * x1 + c, b * x2 + c);
+          const k = Math.ceil((minimo - Math.PI / 2) / Math.PI);
+          const asintota = Math.PI / 2 + k * Math.PI;
+          return asintota >= minimo && asintota <= maximo;
+        }
+      : null
   };
 }

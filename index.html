@@ -23,7 +23,7 @@
           </linearGradient>
         </defs>
       </svg>
-      <div class="brand-text"><h1>Pre-Calculo</h1></div>
+      <div class="brand-text"><h1>Pre-Calculo</h1><p>Explorador visual de funciones</p></div>
     </div>
 
     <div class="developers">
@@ -76,13 +76,17 @@
             <path d="M4 12 L8 6 L12 10 L16 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
+        <button class="random-btn" id="randomBtn" type="button">
+          <span class="random-icon" aria-hidden="true">✦</span>
+          Generar ejercicio
+        </button>
       </div>
     </section>
 
     <!-- CENTRO: gráfica -->
     <section class="plot-panel" aria-label="Gráfica de la función">
       <div class="plot-toolbar">
-        <div class="legend" id="legend"><span class="legend-dot"></span><span>f(x)</span></div>
+        <div class="legend" id="legend"><span class="legend-dot"></span><span>f(x) · vista automática</span></div>
         <div class="zoom-controls">
           <button id="zoomOut" type="button" title="Alejar">−</button>
           <button id="zoomReset" type="button" title="Restablecer vista">⌂</button>
@@ -107,8 +111,27 @@
       <div class="readout-header">
         <span class="readout-dot"></span><span>ANÁLISIS</span>
       </div>
-      <div class="readout-eq" id="readoutEq">y = m·x + b</div>
-      <div class="readout-grid" id="readoutGrid"></div>
+      <div class="tutor-card" aria-live="polite">
+        <div class="tutor-avatar" aria-hidden="true">
+          <svg viewBox="0 0 96 96" fill="none">
+            <path d="M18 42c0-18 13-31 30-31s30 13 30 31v7H18v-7Z" fill="#ffb454"/>
+            <path d="M13 41h70v10H13z" fill="#f6d365"/>
+            <path d="M27 48c0-16 9-25 21-25s21 9 21 25v14c0 14-9 23-21 23s-21-9-21-23V48Z" fill="#f3bd91"/>
+            <path d="M27 48c3-13 14-20 28-18 9 1 14 8 14 18-10-5-28-4-42 0Z" fill="#26324a"/>
+            <circle cx="40" cy="57" r="2.5" fill="#172033"/><circle cx="57" cy="57" r="2.5" fill="#172033"/>
+            <path d="M41 69c4 3 10 3 14 0" stroke="#b85f55" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M20 96c2-18 13-27 28-27s26 9 28 27" fill="#7c5cff"/>
+            <path d="M40 72h16l-8 12-8-12Z" fill="#e8ecf4"/>
+            <path d="M69 78l10-8 5 7-10 8" fill="#29e7cd"/>
+          </svg>
+        </div>
+        <div class="tutor-copy">
+          <span class="tutor-label">ING. VECTOR</span>
+          <p id="tutorText">Elegí una función o generá un ejercicio. Te guiaré paso a paso.</p>
+        </div>
+      </div>
+      <div class="readout-eq" id="readoutEq" aria-live="polite">y = m·x + b</div>
+      <div class="readout-grid" id="readoutGrid" aria-live="polite"></div>
     </section>
   </main>
 

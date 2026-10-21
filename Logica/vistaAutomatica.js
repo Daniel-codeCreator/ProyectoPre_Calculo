@@ -32,7 +32,7 @@ function percentil(ordenado, p) {
   return ordenado[lo] + (ordenado[hi] - ordenado[lo]) * (idx - lo);
 }
 
-export function calcularVistaAutomatica(tipo, params, fn, dimensiones) {
+export function calcularVistaAutomatica(tipo, params, fn, dimensiones, traceRange = null, points = []) {
   let centroX = 0;
   let rangoMedioX = 8;
 
@@ -46,7 +46,17 @@ export function calcularVistaAutomatica(tipo, params, fn, dimensiones) {
     );
   } else if (tipo === 'polinomial') {
     const grado = params.coeffs.length - 1;
-    rangoMedioX = Math.min(14, Math.max(4, 4 + grado));
+    const raices = encontrarRaicesReales(params.coeffs);
+
+    if (raices.length) {
+      const primera = raices[0];
+      const ultima = raices[raices.length - 1];
+      centroX = (primera + ultima) / 2;
+      // Encuadra las raíces y la curvatura cercana, no los extremos lejanos.
+      rangoMedioX = Math.min(14, Math.max(2, (ultima - primera) / 2 + 0.75));
+    } else {
+      rangoMedioX = Math.min(12, Math.max(4, 3 + grado));
+    }
   } else if (tipo === 'trigonometrica') {
     if (params.b === 0) {
       // Si b = 0, la función es constante respecto de x.
@@ -60,6 +70,26 @@ export function calcularVistaAutomatica(tipo, params, fn, dimensiones) {
     }
   }
 
+  if (
+    traceRange &&
+    Number.isFinite(traceRange.xMin) &&
+    Number.isFinite(traceRange.xMax) &&
+    traceRange.xMax > traceRange.xMin
+  ) {
+    centroX = (traceRange.xMin + traceRange.xMax) / 2;
+    rangoMedioX = (traceRange.xMax - traceRange.xMin) / 2 * 1.12;
+  }
+
+  const puntosFinitos = points.filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (puntosFinitos.length) {
+    const xMinPunto = Math.min(...puntosFinitos.map(p => p.x));
+    const xMaxPunto = Math.max(...puntosFinitos.map(p => p.x));
+    const xMinVista = Math.min(centroX - rangoMedioX, xMinPunto);
+    const xMaxVista = Math.max(centroX + rangoMedioX, xMaxPunto);
+    centroX = (xMinVista + xMaxVista) / 2;
+    rangoMedioX = Math.max(1, (xMaxVista - xMinVista) / 2 * 1.08);
+  }
+
   const ys = muestrearRango(
     fn,
     centroX - rangoMedioX,
@@ -68,6 +98,11 @@ export function calcularVistaAutomatica(tipo, params, fn, dimensiones) {
 
   let yBajo = percentil(ys, 0.04);
   let yAlto = percentil(ys, 0.96);
+
+  if (puntosFinitos.length) {
+    yBajo = Math.min(yBajo, ...puntosFinitos.map(p => p.y));
+    yAlto = Math.max(yAlto, ...puntosFinitos.map(p => p.y));
+  }
 
   if (
     !Number.isFinite(yBajo) ||
@@ -97,3 +132,4 @@ export function calcularVistaAutomatica(tipo, params, fn, dimensiones) {
     escala: Math.min(400, Math.max(6, Math.min(escalaX, escalaY)))
   };
 }
+import { encontrarRaicesReales } from './LogicaOperaciones/funcionesPolinomiales.js';

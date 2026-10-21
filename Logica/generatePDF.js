@@ -17,7 +17,7 @@ function limpiarTextoUnicode(str) {
     .replace(/≠/g, '!=')
     .replace(/±/g, '+/-')
     .replace(/∞/g, 'inf')
-    .replace(/·/g, '-')
+    .replace(/·/g, '*')
     // Elimina cualquier otro carácter fuera del rango ASCII / Latin-1 seguro
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, '');
 }
@@ -99,8 +99,13 @@ export async function exportarPDF({ tipo, eq, items, pasos, lienzo, nombreArchiv
     nuevaPaginaSiNecesario(50);
     pagina.drawText('ECUACIÓN', { x: MARGEN, y, size: 11, font: fuenteNegrita, color: colorSubtitulo });
     y -= 18;
-    pagina.drawText(limpiarTextoUnicode(eq), { x: MARGEN, y, size: 15, font: fuenteNegrita, color: colorTexto });
-    y -= 30;
+    const lineas = envolverTexto(eq, fuenteNegrita, 15, ANCHO - MARGEN * 2);
+    nuevaPaginaSiNecesario(lineas.length * 19 + 12);
+    lineas.forEach(linea => {
+      pagina.drawText(linea, { x: MARGEN, y, size: 15, font: fuenteNegrita, color: colorTexto });
+      y -= 19;
+    });
+    y -= 11;
   }
 
   // ---------- PROCEDIMIENTO (PASOS 1, 2, 3...) ----------
@@ -128,8 +133,14 @@ export async function exportarPDF({ tipo, eq, items, pasos, lienzo, nombreArchiv
     y -= 18;
     items.forEach(item => {
       nuevaPaginaSiNecesario(16);
-      pagina.drawText(limpiarTextoUnicode(item.k), { x: MARGEN, y, size: 10.5, font: fuente, color: colorMuted });
-      pagina.drawText(limpiarTextoUnicode(item.v), { x: MARGEN + 230, y, size: 10.5, font: fuenteNegrita, color: colorTexto });
+      const etiqueta = limpiarTextoUnicode(item.k);
+      const valorLineas = envolverTexto(item.v, fuenteNegrita, 10.5, ANCHO - MARGEN * 2 - 185);
+      nuevaPaginaSiNecesario(Math.max(16, valorLineas.length * 13 + 4));
+      pagina.drawText(etiqueta, { x: MARGEN, y, size: 10.5, font: fuente, color: colorMuted });
+      valorLineas.forEach((linea, indice) => {
+        pagina.drawText(linea, { x: MARGEN + 180, y, size: 10.5, font: fuenteNegrita, color: colorTexto });
+        if (indice < valorLineas.length - 1) y -= 13;
+      });
       y -= 16;
     });
     y -= 14;
@@ -137,19 +148,22 @@ export async function exportarPDF({ tipo, eq, items, pasos, lienzo, nombreArchiv
 
   // ---------- GRÁFICA ----------
   if (lienzo && lienzo.width > 0 && lienzo.height > 0) {
-    nuevaPaginaSiNecesario(60);
-    pagina.drawText('GRÁFICA', { x: MARGEN, y, size: 11, font: fuenteNegrita, color: colorSubtitulo });
-    y -= 16;
+      try {
+        const dataUrl = lienzo.toDataURL('image/png');
+        const imagenPng = await pdfDoc.embedPng(dataUrlABytes(dataUrl));
+        const anchoDisponible = ANCHO - MARGEN * 2;
+        const altoMaximo = ALTO - 120;
+        const escala = Math.min(anchoDisponible / imagenPng.width, altoMaximo / imagenPng.height);
+        const anchoImg = imagenPng.width * escala;
+        const altoImg = imagenPng.height * escala;
 
-    try {
-      const dataUrl = lienzo.toDataURL('image/png');
-      const imagenPng = await pdfDoc.embedPng(dataUrlABytes(dataUrl));
-      const anchoDisponible = ANCHO - MARGEN * 2;
-      const escala = anchoDisponible / imagenPng.width;
-      const altoImg = imagenPng.height * escala;
-
-      nuevaPaginaSiNecesario(altoImg + 10);
-      pagina.drawImage(imagenPng, { x: MARGEN, y: y - altoImg, width: anchoDisponible, height: altoImg });
+        if (y - altoImg - 28 < 45) {
+          pagina = pdfDoc.addPage([ANCHO, ALTO]);
+          y = ALTO - 55;
+        }
+        pagina.drawText('GRÁFICA', { x: MARGEN, y, size: 11, font: fuenteNegrita, color: colorSubtitulo });
+        y -= 16;
+        pagina.drawImage(imagenPng, { x: MARGEN, y: y - altoImg, width: anchoImg, height: altoImg });
     } catch (e) {
       console.warn('Error al adjuntar la imagen del canvas:', e);
     }

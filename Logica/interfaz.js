@@ -11,6 +11,8 @@ const ecuacionSalida = document.getElementById('readoutEq');
 const rejillaSalida = document.getElementById('readoutGrid');
 const lienzo = document.getElementById('plotCanvas');
 const botonGraficar = document.getElementById('graphBtn');
+const botonAleatorio = document.getElementById('randomBtn');
+const textoTutor = document.getElementById('tutorText');
 
 const documentWord = document.getElementById('documentBtn');
 
@@ -87,9 +89,23 @@ function graficar() {
   const resultado = configuracionPestanas[tipoActual].construir(params);
   ultimoResultado = resultado;
   actualizarResultado(resultado.eq, resultado.items, resultado.steps);
+  document.querySelector('#legend span:last-child').textContent = `${configuracionPestanas[tipoActual].etiqueta} · vista automática`;
+  textoTutor.textContent = {
+    lineal: 'Revisá la pendiente: define si la recta sube, baja o se mantiene constante.',
+    cuadratica: 'El discriminante identifica las raíces y el vértice marca el punto clave de la parábola.',
+    polinomial: 'Localizá primero las intersecciones con el eje x y luego observá cómo se comportan los extremos.',
+    trigonometrica: 'Mirá amplitud, período y desfase. En tangente, respetá siempre las asíntotas.'
+  }[tipoActual];
 
   const dimensiones = motor.obtenerDimensiones();
-  const vistaAuto = calcularVistaAutomatica(tipoActual, params, resultado.fn, dimensiones);
+  const vistaAuto = calcularVistaAutomatica(
+    tipoActual,
+    params,
+    resultado.fn,
+    dimensiones,
+    resultado.traceRange,
+    resultado.points
+  );
   motor.ajustarVista(vistaAuto);
   motor.graficar(resultado);
 }
@@ -107,6 +123,47 @@ document.querySelectorAll('.fn-tab').forEach(pestana => {
 });
 
 botonGraficar.addEventListener('click', graficar);
+
+function enteroAleatorio(minimo, maximo, excluirCero = false) {
+  let valor;
+  do {
+    valor = Math.floor(Math.random() * (maximo - minimo + 1)) + minimo;
+  } while (excluirCero && valor === 0);
+  return valor;
+}
+
+function asignarCampo(id, valor) {
+  document.getElementById(id).value = valor;
+}
+
+function generarEjercicioAleatorio() {
+  if (tipoActual === 'lineal') {
+    asignarCampo('in_m', enteroAleatorio(-6, 6, true));
+    asignarCampo('in_b', enteroAleatorio(-10, 10));
+  } else if (tipoActual === 'cuadratica') {
+    asignarCampo('in_a', enteroAleatorio(-4, 4, true));
+    asignarCampo('in_b', enteroAleatorio(-10, 10));
+    asignarCampo('in_c', enteroAleatorio(-10, 10));
+  } else if (tipoActual === 'polinomial') {
+    gradoPolinomio = enteroAleatorio(2, 5);
+    renderizarEntradas();
+    for (let d = gradoPolinomio; d >= 0; d--) {
+      asignarCampo(`in_c${d}`, d === gradoPolinomio
+        ? enteroAleatorio(-3, 3, true)
+        : enteroAleatorio(-8, 8));
+    }
+  } else {
+    const funciones = ['sin', 'cos', 'tan'];
+    asignarCampo('in_fn', funciones[enteroAleatorio(0, funciones.length - 1)]);
+    asignarCampo('in_a', enteroAleatorio(-4, 4, true));
+    asignarCampo('in_b', enteroAleatorio(-4, 4, true));
+    asignarCampo('in_c', enteroAleatorio(-6, 6) / 2);
+    asignarCampo('in_d', enteroAleatorio(-6, 6));
+  }
+  graficar();
+}
+
+botonAleatorio.addEventListener('click', generarEjercicioAleatorio);
 
 /* ---------------- atajo de teclado: Enter para graficar ---------------- */
 
@@ -150,6 +207,7 @@ document.getElementById('exportPdfBtn').addEventListener('click', async () => {
   boton.disabled = true;
   boton.textContent = '...';
   try {
+    motor.prepararExportacion();
     await exportarPDF({
       tipo: tipoActual.toUpperCase(), // Se pasa el string directo
       eq: ultimoResultado.eq,
