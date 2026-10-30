@@ -31,6 +31,8 @@ if (documentWord) {
 let tipoActual = 'lineal';
 let gradoPolinomio = 2;
 let ultimoResultado = null;
+let ultimoContextoVista = null;
+let cuadroReencuadre = null;
 
 const configuracionPestanas = {
   lineal: Lineal,
@@ -84,6 +86,21 @@ function actualizarResultado(eq, items, pasos) {
 
 const motor = crearMotorGrafico(lienzo);
 
+function ajustarVistaAutomatica() {
+  if (!ultimoContextoVista) return;
+
+  const { tipo, params, resultado } = ultimoContextoVista;
+  const vistaAuto = calcularVistaAutomatica(
+    tipo,
+    params,
+    resultado.fn,
+    motor.obtenerDimensiones(),
+    resultado.traceRange,
+    resultado.points
+  );
+  motor.ajustarVista(vistaAuto);
+}
+
 function graficar() {
   const params = leerParametrosActuales();
   const resultado = configuracionPestanas[tipoActual].construir(params);
@@ -97,18 +114,18 @@ function graficar() {
     trigonometrica: 'Mirá amplitud, período y desfase. En tangente, respetá siempre las asíntotas.'
   }[tipoActual];
 
-  const dimensiones = motor.obtenerDimensiones();
-  const vistaAuto = calcularVistaAutomatica(
-    tipoActual,
-    params,
-    resultado.fn,
-    dimensiones,
-    resultado.traceRange,
-    resultado.points
-  );
-  motor.ajustarVista(vistaAuto);
+  ultimoContextoVista = { tipo: tipoActual, params, resultado };
+  ajustarVistaAutomatica();
   motor.graficar(resultado);
 }
+
+window.addEventListener('resize', () => {
+  if (cuadroReencuadre) cancelAnimationFrame(cuadroReencuadre);
+  cuadroReencuadre = requestAnimationFrame(() => {
+    ajustarVistaAutomatica();
+    motor.dibujar();
+  });
+});
 
 /* ---------------- eventos: pestañas ---------------- */
 
@@ -207,7 +224,7 @@ document.getElementById('exportPdfBtn').addEventListener('click', async () => {
   boton.disabled = true;
   boton.textContent = '...';
   try {
-    motor.prepararExportacion();
+    motor.finalizarDibujo();
     await exportarPDF({
       tipo: tipoActual.toUpperCase(), // Se pasa el string directo
       eq: ultimoResultado.eq,
